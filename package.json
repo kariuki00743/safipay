@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-  "build": "vite build",
-  "preview": "vite preview"
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && gh-pages -d dist"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   },
   "homepage": "https://github.com/kariuki00743/safipay#readme",
   "devDependencies": {
+    "gh-pages": "^6.3.0",
     "vite": "^7.3.1"
   }
 }
