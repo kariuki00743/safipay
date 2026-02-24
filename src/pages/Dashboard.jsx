@@ -52,6 +52,32 @@ export default function Dashboard() {
     setSubmitting(false)
   }
 
+  const handlePayment = async (tx) => {
+    const phone = prompt('Enter buyer M-Pesa phone number (e.g. 0712345678):')
+    if (!phone) return
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/stkpush`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          amount: tx.amount,
+          description: tx.description,
+          transactionId: tx.id
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('✅ STK Push sent! Check your phone for the M-Pesa prompt.')
+      } else {
+        alert('❌ Payment failed: ' + JSON.stringify(data.error))
+      }
+    } catch (err) {
+      alert('❌ Could not connect to payment server.')
+    }
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate('/login')
@@ -109,18 +135,11 @@ export default function Dashboard() {
         {showForm && (
           <div style={{ background: '#0f1a12', border: '1px solid rgba(0,197,102,0.2)', borderRadius: '16px', padding: '1.8rem', marginBottom: '2rem' }}>
             <h3 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, marginBottom: '1.5rem', fontSize: '1.1rem' }}>New Escrow Transaction</h3>
-
             {error && <p style={{ color: '#e0132e', fontSize: '0.85rem', marginBottom: '1rem', background: 'rgba(224,19,46,0.1)', padding: '0.7rem 1rem', borderRadius: '8px' }}>{error}</p>}
-
-            <input placeholder="Buyer email" value={form.buyer_email}
-              onChange={e => setForm({ ...form, buyer_email: e.target.value })} style={inputStyle} />
-            <input placeholder="Seller email" value={form.seller_email}
-              onChange={e => setForm({ ...form, seller_email: e.target.value })} style={inputStyle} />
-            <input placeholder="Amount (KES)" type="number" value={form.amount}
-              onChange={e => setForm({ ...form, amount: e.target.value })} style={inputStyle} />
-            <input placeholder="Description (e.g. iPhone 14 Pro)" value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })} style={inputStyle} />
-
+            <input placeholder="Buyer email" value={form.buyer_email} onChange={e => setForm({ ...form, buyer_email: e.target.value })} style={inputStyle} />
+            <input placeholder="Seller email" value={form.seller_email} onChange={e => setForm({ ...form, seller_email: e.target.value })} style={inputStyle} />
+            <input placeholder="Amount (KES)" type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={inputStyle} />
+            <input placeholder="Description (e.g. iPhone 14 Pro)" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={inputStyle} />
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button onClick={handleCreate} disabled={submitting}
                 style={{ flex: 1, background: '#00c566', color: '#000', border: 'none', borderRadius: '10px', padding: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
@@ -171,9 +190,7 @@ export default function Dashboard() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div>
                       <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>{tx.description}</div>
-                      <div style={{ color: '#6b9178', fontSize: '0.8rem' }}>
-                        {tx.buyer_email} → {tx.seller_email}
-                      </div>
+                      <div style={{ color: '#6b9178', fontSize: '0.8rem' }}>{tx.buyer_email} → {tx.seller_email}</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '1.1rem', marginBottom: '0.3rem' }}>
@@ -184,8 +201,16 @@ export default function Dashboard() {
                       </span>
                     </div>
                   </div>
-                  <div style={{ color: '#4a7a58', fontSize: '0.75rem', marginTop: '0.8rem' }}>
-                    {new Date(tx.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.8rem' }}>
+                    <div style={{ color: '#4a7a58', fontSize: '0.75rem' }}>
+                      {new Date(tx.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                    {tx.status === 'held' && (
+                      <button onClick={() => handlePayment(tx)}
+                        style={{ background: '#00c566', color: '#000', border: 'none', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                        📲 Pay with M-Pesa
+                      </button>
+                    )}
                   </div>
                 </div>
               )
