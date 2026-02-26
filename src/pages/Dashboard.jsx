@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [disputeModal, setDisputeModal] = useState({ open: false, transaction: null, reason: '', loading: false })
   const [detailsModal, setDetailsModal] = useState({ open: false, transaction: null })
   const [refundModal, setRefundModal] = useState({ open: false, transaction: null, loading: false })
+  const [confirmPaymentModal, setConfirmPaymentModal] = useState({ open: false, transaction: null, receipt: '', loading: false })
   
   // Toast notification
   const [toast, setToast] = useState({ message: '', type: 'info' })
@@ -294,6 +295,76 @@ export default function Dashboard() {
     }
   }
 
+  const handleConfirmPayment = async () => {
+    const { transaction, receipt } = confirmPaymentModal
+    setConfirmPaymentModal(prev => ({ ...prev, loading: true }))
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        showToast('Session expired. Please log in again.', 'error')
+        navigate('/login')
+        return
+      }
+
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/confirm-payment`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ transactionId: transaction.id, mpesaReceipt: receipt })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        showToast('Payment confirmed! ✅', 'success')
+        setConfirmPaymentModal({ open: false, transaction: null, receipt: '', loading: false })
+        setPollingTxId(null) // Stop polling
+        fetchTransactions(user.id)
+      } else {
+        showToast(data.error || 'Failed to confirm payment', 'error')
+        setConfirmPaymentModal(prev => ({ ...prev, loading: false }))
+      }
+    } catch (err) {
+      console.error(err)
+      showToast('Could not connect to server', 'error')
+      setConfirmPaymentModal(prev => ({ ...prev, loading: false }))
+    }
+  }
+
+  const handleCancelPayment = async (transaction) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        showToast('Session expired. Please log in again.', 'error')
+        navigate('/login')
+        return
+      }
+
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/cancel-payment`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ transactionId: transaction.id })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        showToast('Payment cancelled. You can try again.', 'info')
+        setPollingTxId(null) // Stop polling
+        fetchTransactions(user.id)
+      } else {
+        showToast(data.error || 'Failed to cancel payment', 'error')
+      }
+    } catch (err) {
+      console.error(err)
+      showToast('Could not connect to server', 'error')
+    }
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate('/login')
@@ -465,6 +536,7 @@ export default function Dashboard() {
               const canRelease = tx.status === 'paid'
               const canDispute = tx.status === 'held' || tx.status === 'pending_payment' || tx.status === 'paid'
               const canRefund = tx.status === 'paid' || tx.status === 'disputed'
+              const isPending = tx.status === 'pending_payment'
               return (
                 <div key={tx.id} style={{ background: '#0f1a12', border: '1px solid rgba(0,197,102,0.12)', borderRadius: '14px', padding: '1.3rem 1.5rem' }}>
 
@@ -494,7 +566,14 @@ export default function Dashboard() {
                   {/* ERROR MESSAGE */}
                   {tx.payment_error && (
                     <div style={{ marginTop: '0.6rem', fontSize: '0.78rem', color: '#e0132e', background: 'rgba(224,19,46,0.06)', padding: '0.4rem 0.8rem', borderRadius: '6px' }}>
-                      Payment failed: {tx.payment_error}
+                      {tx.payment_error}
+                    </div>
+                  )}
+
+                  {/* PENDING PAYMENT INFO */}
+                  {isPending && (
+                    <div style={{ marginTop: '0.6rem', fontSize: '0.78rem', color: '#ff9800', background: 'rgba(255,152,0,0.06)', padding: '0.4rem 0.8rem', borderRadius: '6px' }}>
+                      ⏳ Waiting for M-Pesa confirmation... Check your phone for the prompt.
                     </div>
                   )}
 
@@ -516,10 +595,24 @@ export default function Dashboard() {
                           📲 Pay with M-Pesa
                         </button>
                       )}
-                      {pollingTxId === tx.id && (
+                      {isPending && pollingTxId === tx.id && (
                         <span style={{ color: '#ff9800', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>⏳</span> Checking payment...
+                          <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>⏳</span> Checking...
                         </span>
+                      )}
+                      {isPending && (
+                        <>
+                          <button 
+                            onClick={() => setConfirmPaymentModal({ open: true, transaction: tx, receipt: '', loading: false })}
+                            style={{ background: 'transparent', color: '#00c566', border: '1px solid rgba(0,197,102,0.4)', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                            ✅ Confirm Payment
+                          </button>
+                          <button 
+                            onClick={() => handleCancelPayment(tx)}
+                            style={{ background: 'transparent', color: '#6b9178', border: '1px solid rgba(107,145,120,0.3)', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                            ✖️ Cancel
+                          </button>
+                        </>
                       )}
                       {canRelease && (
                         <button 
@@ -839,6 +932,76 @@ export default function Dashboard() {
             <button 
               onClick={() => setRefundModal({ open: false, transaction: null, loading: false })}
               disabled={refundModal.loading}
+              style={{ 
+                flex: 1,
+                background: 'transparent',
+                color: '#6b9178',
+                border: '1px solid rgba(0,197,102,0.15)',
+                borderRadius: '10px',
+                padding: '0.85rem',
+                cursor: 'pointer'
+              }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* CONFIRM PAYMENT MODAL */}
+      <Modal 
+        isOpen={confirmPaymentModal.open} 
+        onClose={() => !confirmPaymentModal.loading && setConfirmPaymentModal({ open: false, transaction: null, receipt: '', loading: false })}
+        title="Confirm Payment Manually">
+        <div>
+          <p style={{ color: '#6b9178', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+            If you've completed the M-Pesa payment but it's not showing as confirmed, you can manually confirm it here. Optionally enter the M-Pesa receipt number.
+          </p>
+          <div style={{ background: '#152019', border: '1px solid rgba(0,197,102,0.1)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Transaction</div>
+            <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{confirmPaymentModal.transaction?.description}</div>
+            <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.3rem', fontWeight: 800, color: '#00c566' }}>
+              KES {Number(confirmPaymentModal.transaction?.amount || 0).toLocaleString()}
+            </div>
+          </div>
+          <input 
+            type="text"
+            placeholder="M-Pesa Receipt (optional, e.g. SH12ABC34D)"
+            value={confirmPaymentModal.receipt}
+            onChange={(e) => setConfirmPaymentModal(prev => ({ ...prev, receipt: e.target.value }))}
+            disabled={confirmPaymentModal.loading}
+            style={{ 
+              width: '100%',
+              background: '#152019',
+              border: '1px solid rgba(0,197,102,0.15)',
+              borderRadius: '10px',
+              padding: '0.85rem 1rem',
+              color: '#e8f5ec',
+              fontSize: '0.95rem',
+              outline: 'none',
+              boxSizing: 'border-box',
+              marginBottom: '1.5rem'
+            }}
+          />
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              onClick={handleConfirmPayment}
+              disabled={confirmPaymentModal.loading}
+              style={{ 
+                flex: 1,
+                background: '#00c566',
+                color: '#000',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '0.85rem',
+                fontWeight: 700,
+                cursor: confirmPaymentModal.loading ? 'not-allowed' : 'pointer',
+                opacity: confirmPaymentModal.loading ? 0.6 : 1
+              }}>
+              {confirmPaymentModal.loading ? 'Confirming...' : '✅ Confirm Payment'}
+            </button>
+            <button 
+              onClick={() => setConfirmPaymentModal({ open: false, transaction: null, receipt: '', loading: false })}
+              disabled={confirmPaymentModal.loading}
               style={{ 
                 flex: 1,
                 background: 'transparent',

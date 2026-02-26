@@ -39,15 +39,22 @@ const supabase = createClient(
 
 // Generate M-Pesa access token
 const getAccessToken = async () => {
-  const auth = Buffer.from(
-    `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
-  ).toString('base64')
+  try {
+    const auth = Buffer.from(
+      `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
+    ).toString('base64')
 
-  const res = await axios.get(
-    'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
-    { headers: { Authorization: `Basic ${auth}` } }
-  )
-  return res.data.access_token
+    console.log('🔑 Requesting M-Pesa access token...')
+    const res = await axios.get(
+      'https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials',
+      { headers: { Authorization: `Basic ${auth}` } }
+    )
+    console.log('✅ Access token received')
+    return res.data.access_token
+  } catch (error) {
+    console.error('❌ Failed to get M-Pesa access token:', error.response?.data || error.message)
+    throw new Error('Failed to authenticate with M-Pesa: ' + (error.response?.data?.errorMessage || error.message))
+  }
 }
 
 // Middleware to verify Supabase JWT
@@ -91,12 +98,16 @@ app.post('/api/stkpush', verifyAuth, async (req, res) => {
   try {
     const { phone, amount, description, transactionId } = req.body
 
+    console.log('📲 STK Push request received:', { phone, amount, transactionId })
+
     // Validate inputs
     if (!phone || !amount || !transactionId) {
+      console.log('❌ Missing required fields')
       return res.status(400).json({ success: false, error: 'Missing required fields' })
     }
 
     if (amount < 1) {
+      console.log('❌ Invalid amount:', amount)
       return res.status(400).json({ success: false, error: 'Amount must be at least KES 1' })
     }
 
@@ -109,17 +120,23 @@ app.post('/api/stkpush', verifyAuth, async (req, res) => {
       .single()
 
     if (txError || !transaction) {
+      console.log('❌ Transaction not found:', txError)
       return res.status(404).json({ success: false, error: 'Transaction not found' })
     }
 
     if (transaction.status !== 'held') {
+      console.log('❌ Invalid transaction status:', transaction.status)
       return res.status(400).json({ success: false, error: 'Transaction is not in held status' })
     }
 
     // Validate and format phone
+    console.log('📱 Validating phone number:', phone)
     const formattedPhone = validatePhone(phone)
+    console.log('✅ Phone validated:', formattedPhone)
 
+    console.log('🔑 Getting M-Pesa access token...')
     const token = await getAccessToken()
+    
     const timestamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14)
     const password = Buffer.from(
       `${process.env.MPESA_SHORTCODE}${process.env.MPESA_PASSKEY}${timestamp}`
@@ -139,11 +156,14 @@ app.post('/api/stkpush', verifyAuth, async (req, res) => {
       TransactionDesc: description
     }
 
+    console.log('📤 Sending STK push to M-Pesa...')
     const response = await axios.post(
       'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest',
       payload,
       { headers: { Authorization: `Bearer ${token}` } }
     )
+
+    console.log('✅ M-Pesa response:', response.data)
 
     // Only store the checkout ID, don't mark as paid yet (wait for callback)
     await supabase
@@ -154,12 +174,15 @@ app.post('/api/stkpush', verifyAuth, async (req, res) => {
       })
       .eq('id', transactionId)
 
+    console.log('✅ Transaction updated to pending_payment')
     res.json({ success: true, data: response.data })
   } catch (err) {
-    console.error('STK Push error:', err.response?.data || err.message)
+    console.error('❌ STK Push error:', err.response?.data || err.message)
+    console.error('Full error:', err)
     res.status(500).json({ 
       success: false, 
-      error: err.message || 'Payment request failed. Please try again.' 
+      error: err.message || 'Payment request failed. Please try again.',
+      details: err.response?.data || null
     })
   }
 })
@@ -169,6 +192,8 @@ app.post('/api/callback', async (req, res) => {
   try {
     const body = req.body
     const result = body.Body?.stkCallback
+
+    console.log('📞 M-Pesa callback received:', JSON.stringify(body, null, 2))
 
     if (!result) {
       console.warn('Invalid callback format:', body)
@@ -192,7 +217,8 @@ app.post('/api/callback', async (req, res) => {
         .update({
           status: 'paid',
           mpesa_receipt: receipt,
-          paid_at: new Date().toISOString()
+          paid_at: new Date().toISOString(),
+          payment_error: null
         })
         .eq('mpesa_code', checkoutId)
         .select()
@@ -212,17 +238,20 @@ app.post('/api/callback', async (req, res) => {
       }
     } else {
       // Payment failed or cancelled
-      const errorMessage = result.ResultDesc || 'Payment failed'
+      const errorMessage = result.ResultDesc || 'Payment failed or cancelled by user'
+      
+      console.log(`❌ Payment failed/cancelled for ${checkoutId}: ${errorMessage}`)
       
       await supabase
         .from('transactions')
         .update({
           status: 'held', // Revert to held so user can retry
-          payment_error: errorMessage
+          payment_error: errorMessage,
+          mpesa_code: null // Clear the checkout ID so they can try again
         })
         .eq('mpesa_code', checkoutId)
 
-      console.log(`❌ Payment failed for ${checkoutId}: ${errorMessage}`)
+      console.log(`🔄 Transaction reverted to 'held' status for retry`)
     }
 
     res.json({ ResultCode: 0, ResultDesc: 'Success' })
@@ -429,8 +458,138 @@ app.post('/api/refund', verifyAuth, async (req, res) => {
   }
 })
 
+// Manual payment confirmation (fallback if callback doesn't arrive)
+app.post('/api/confirm-payment', verifyAuth, async (req, res) => {
+  try {
+    const { transactionId, mpesaReceipt } = req.body
+
+    if (!transactionId) {
+      return res.status(400).json({ success: false, error: 'Transaction ID is required' })
+    }
+
+    // Verify transaction belongs to user
+    const { data: transaction, error: txError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .eq('user_id', req.user.id)
+      .single()
+
+    if (txError || !transaction) {
+      return res.status(404).json({ success: false, error: 'Transaction not found' })
+    }
+
+    // Can only confirm pending_payment transactions
+    if (transaction.status !== 'pending_payment') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Can only confirm pending payments' 
+      })
+    }
+
+    // Update transaction to paid
+    const { data: updatedTransaction, error } = await supabase
+      .from('transactions')
+      .update({
+        status: 'paid',
+        mpesa_receipt: mpesaReceipt || 'MANUAL_CONFIRMATION',
+        paid_at: new Date().toISOString(),
+        payment_error: null
+      })
+      .eq('id', transactionId)
+      .select()
+      .single()
+
+    if (error) throw error
+    
+    console.log(`✅ Payment manually confirmed for transaction ${transactionId}`)
+    
+    // Send email notifications
+    try {
+      await notifyPaymentReceived(updatedTransaction)
+    } catch (emailError) {
+      console.error('Failed to send email notification:', emailError)
+    }
+    
+    res.json({ success: true, message: 'Payment confirmed successfully' })
+  } catch (err) {
+    console.error('Confirm payment error:', err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// Cancel pending payment
+app.post('/api/cancel-payment', verifyAuth, async (req, res) => {
+  try {
+    const { transactionId } = req.body
+
+    if (!transactionId) {
+      return res.status(400).json({ success: false, error: 'Transaction ID is required' })
+    }
+
+    // Verify transaction belongs to user
+    const { data: transaction, error: txError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .eq('user_id', req.user.id)
+      .single()
+
+    if (txError || !transaction) {
+      return res.status(404).json({ success: false, error: 'Transaction not found' })
+    }
+
+    // Can only cancel pending_payment transactions
+    if (transaction.status !== 'pending_payment') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Can only cancel pending payments' 
+      })
+    }
+
+    // Revert to held status
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        status: 'held',
+        mpesa_code: null,
+        payment_error: 'Payment cancelled by user'
+      })
+      .eq('id', transactionId)
+
+    if (error) throw error
+    
+    console.log(`🔄 Payment cancelled for transaction ${transactionId}`)
+    
+    res.json({ success: true, message: 'Payment cancelled successfully' })
+  } catch (err) {
+    console.error('Cancel payment error:', err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
 // Health check
 app.get('/', (req, res) => res.json({ status: 'SafiPay backend running ✅' }))
+
+// Test endpoint to verify M-Pesa credentials
+app.get('/api/test-mpesa', async (req, res) => {
+  try {
+    console.log('🧪 Testing M-Pesa connection...')
+    const token = await getAccessToken()
+    res.json({ 
+      success: true, 
+      message: 'M-Pesa credentials are valid ✅',
+      tokenReceived: !!token 
+    })
+  } catch (error) {
+    console.error('❌ M-Pesa test failed:', error.message)
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.response?.data || null
+    })
+  }
+})
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
