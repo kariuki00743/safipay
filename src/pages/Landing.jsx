@@ -39,11 +39,11 @@ export default function Landing() {
         </div>
 
         <h1 style={{ fontSize: 'clamp(2.5rem, 8vw, 4.5rem)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-0.03em', maxWidth: '900px', margin: '0 auto', marginBottom: '1.5rem' }}>
-          Hire Freelancers with <span style={{ background: 'linear-gradient(135deg, #00c566 0%, #00ff88 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Complete Safety</span>
+          Secure Escrow Payments in <span style={{ background: 'linear-gradient(135deg, #00c566 0%, #00ff88 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>Kenya</span>
         </h1>
 
         <p style={{ fontSize: 'clamp(1rem, 2vw, 1.2rem)', color: '#8ba896', maxWidth: '700px', margin: '0 auto 3rem', lineHeight: 1.7, fontWeight: 400 }}>
-          SafiPay protects your payments for freelance services. We hold funds in escrow until the work is delivered and approved. No more scams, no more worries.
+          SafiPay protects your online transactions with M-Pesa escrow. We hold funds securely until both parties are satisfied. Buy and sell anything with confidence.
         </p>
 
         <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginBottom: '3rem', flexWrap: 'wrap' }}>
@@ -78,13 +78,13 @@ export default function Landing() {
       <div style={{ background: 'rgba(15,26,18,0.3)', padding: '5rem 5%', borderTop: '1px solid rgba(0,197,102,0.1)', borderBottom: '1px solid rgba(0,197,102,0.1)' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <h2 style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', letterSpacing: '-0.02em' }}>
-            Tired of Freelance Payment Scams?
+            Tired of Online Payment Scams?
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
             {[
-              { icon: '😰', title: 'Client Worries', desc: 'Pay upfront but freelancer disappears or delivers poor work' },
-              { icon: '😤', title: 'Freelancer Concerns', desc: 'Complete the work but client refuses to pay' },
-              { icon: '💔', title: 'No Protection', desc: 'No way to get your money back if things go wrong' }
+              { icon: '😰', title: 'Buyer Worries', desc: 'Pay upfront but seller disappears or sends fake/damaged items' },
+              { icon: '😤', title: 'Seller Concerns', desc: 'Ship the item but buyer refuses to pay or claims it never arrived' },
+              { icon: '💔', title: 'No Protection', desc: 'No way to get your money back when deals go wrong' }
             ].map((problem, i) => (
               <div key={i} style={{ background: 'rgba(224,19,46,0.05)', border: '1px solid rgba(224,19,46,0.2)', borderRadius: '16px', padding: '2rem', textAlign: 'center' }}>
                 <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{problem.icon}</div>
@@ -109,10 +109,10 @@ export default function Landing() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
           {[
-            { num: '1', icon: '📝', title: 'Create Project', desc: 'Client and freelancer agree on scope, deliverables, and payment terms.' },
-            { num: '2', icon: '💳', title: 'Client Pays', desc: 'Client sends M-Pesa payment. Funds are held securely in escrow.' },
-            { num: '3', icon: '⚙️', title: 'Work Delivered', desc: 'Freelancer completes and delivers the work as agreed.' },
-            { num: '4', icon: '✅', title: 'Release Payment', desc: 'Client reviews and approves. Funds are released to freelancer instantly.' }
+            { num: '1', icon: '📝', title: 'Create Transaction', desc: 'Buyer and seller agree on item, price, and delivery terms.' },
+            { num: '2', icon: '💳', title: 'Buyer Pays', desc: 'Buyer sends M-Pesa payment. Funds are held securely in escrow.' },
+            { num: '3', icon: '📦', title: 'Item Delivered', desc: 'Seller ships the item or delivers the service as agreed.' },
+            { num: '4', icon: '✅', title: 'Release Payment', desc: 'Buyer confirms receipt and approves. Funds are released to seller instantly.' }
           ].map((step, i) => (
             <div key={i} style={{ position: 'relative', background: 'rgba(15,26,18,0.5)', border: '1px solid rgba(0,197,102,0.2)', borderRadius: '16px', padding: '2rem', transition: 'all 0.3s' }}>
               <div style={{ position: 'absolute', top: '-1rem', left: '1.5rem', background: '#00c566', color: '#000', width: '2.5rem', height: '2.5rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.2rem' }}>
@@ -154,19 +154,19 @@ export default function Landing() {
       {/* USE CASES */}
       <div style={{ padding: '5rem 5%', maxWidth: '1200px', margin: '0 auto' }}>
         <h2 style={{ fontSize: 'clamp(1.8rem, 5vw, 2.5rem)', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', letterSpacing: '-0.02em' }}>
-          Perfect For Digital Services
+          Perfect For Any Transaction
         </h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>
           {[
-            { icon: '💻', title: 'Web Development', desc: 'Websites, apps, software' },
-            { icon: '🎨', title: 'Design & Creative', desc: 'Graphics, logos, branding' },
-            { icon: '✍️', title: 'Content Writing', desc: 'Articles, blogs, copywriting' },
-            { icon: '📱', title: 'Digital Marketing', desc: 'SEO, social media, ads' },
-            { icon: '🎬', title: 'Video & Animation', desc: 'Editing, motion graphics' },
-            { icon: '📊', title: 'Data & Analytics', desc: 'Analysis, reports, research' },
-            { icon: '🎵', title: 'Audio Services', desc: 'Voice-overs, music, podcasts' },
-            { icon: '🔧', title: 'Tech Support', desc: 'IT services, consulting' },
-            { icon: '📚', title: 'Tutoring & Training', desc: 'Online lessons, coaching' }
+            { icon: '📱', title: 'Electronics', desc: 'Phones, laptops, gadgets' },
+            { icon: '🏠', title: 'Real Estate', desc: 'Property deposits, rent' },
+            { icon: '🚗', title: 'Vehicles', desc: 'Cars, motorcycles, parts' },
+            { icon: '💻', title: 'Freelance Work', desc: 'Web dev, design, writing' },
+            { icon: '👕', title: 'Fashion & Clothing', desc: 'Clothes, shoes, accessories' },
+            { icon: '🪑', title: 'Furniture', desc: 'Home & office furniture' },
+            { icon: '🎮', title: 'Gaming', desc: 'Consoles, games, accounts' },
+            { icon: '📚', title: 'Education', desc: 'Courses, tutoring, books' },
+            { icon: '🎨', title: 'Art & Collectibles', desc: 'Artwork, antiques, rare items' }
           ].map((useCase, i) => (
             <div key={i} style={{ background: 'rgba(15,26,18,0.5)', border: '1px solid rgba(0,197,102,0.1)', borderRadius: '16px', padding: '1.5rem', textAlign: 'center', transition: 'all 0.3s' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{useCase.icon}</div>
@@ -185,9 +185,9 @@ export default function Landing() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
             {[
-              { name: 'James M.', location: 'Nairobi', role: 'Web Developer', text: 'SafiPay changed how I work with clients. They pay upfront, I deliver the website, then funds are released. No more chasing payments!' },
-              { name: 'Grace K.', location: 'Mombasa', role: 'Graphic Designer', text: 'As a client, I finally feel safe hiring freelancers. SafiPay holds my payment until I approve the designs. Perfect protection!' },
-              { name: 'David O.', location: 'Kisumu', role: 'Content Writer', text: 'I used to worry about clients not paying. Now with SafiPay, I know the money is secured before I start writing. Game changer!' }
+              { name: 'James M.', location: 'Nairobi', role: 'Electronics Buyer', text: 'Bought a laptop on Jiji. SafiPay held my payment until I confirmed the laptop was genuine. No more fake electronics!' },
+              { name: 'Grace K.', location: 'Mombasa', role: 'Online Seller', text: 'I sell clothes online. SafiPay protects me from buyers who claim they never received items. Payment is guaranteed!' },
+              { name: 'David O.', location: 'Kisumu', role: 'Car Buyer', text: 'Used SafiPay for a car deposit. Seller got paid only after I verified the car documents. Best decision ever!' }
             ].map((testimonial, i) => (
               <div key={i} style={{ background: 'rgba(15,26,18,0.5)', border: '1px solid rgba(0,197,102,0.2)', borderRadius: '16px', padding: '2rem' }}>
                 <div style={{ color: '#00c566', fontSize: '2rem', marginBottom: '1rem' }}>★★★★★</div>
@@ -205,10 +205,10 @@ export default function Landing() {
       {/* CTA SECTION */}
       <div style={{ padding: '5rem 5%', textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
         <h2 style={{ fontSize: 'clamp(2rem, 6vw, 3rem)', fontWeight: 800, marginBottom: '1.5rem', letterSpacing: '-0.03em' }}>
-          Ready to Work Safely?
+          Ready to Transact Safely?
         </h2>
         <p style={{ fontSize: '1.2rem', color: '#8ba896', marginBottom: '2.5rem', lineHeight: 1.7 }}>
-          Join hundreds of Kenyan freelancers and clients who trust SafiPay for secure service payments
+          Join thousands of Kenyans who trust SafiPay for secure online transactions
         </p>
         <button onClick={() => navigate('/signup')}
           style={{ background: '#00c566', color: '#000', border: 'none', padding: '1.2rem 3rem', borderRadius: '12px', fontWeight: 700, fontSize: '1.1rem', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 20px rgba(0,197,102,0.3)' }}>
