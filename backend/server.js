@@ -610,4 +610,27 @@ app.get('/api/test-mpesa', async (req, res) => {
 })
 
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`))
+
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'SafiPay Backend API',
+    timestamp: new Date().toISOString()
+  })
+})
+
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy',
+    environment: {
+      supabase: !!process.env.SUPABASE_URL,
+      mpesa: !!process.env.MPESA_CONSUMER_KEY
+    }
+  })
+})
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`)
+  console.log(`🔗 Backend URL: ${process.env.MPESA_CALLBACK_URL?.replace('/api/callback', '') || 'http://localhost:' + PORT}`)
+})
