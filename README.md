@@ -3,6 +3,42 @@ M-Pesa Escrow Web App
 
 ## Recent Updates
 
+### Phase 3: Missing Features ✅
+
+1. **Email Notifications** - Automated emails for all transaction events:
+   - Transaction created (sent to buyer & seller)
+   - Payment received (with M-Pesa receipt)
+   - Funds released (transaction complete)
+   - Dispute raised (with reason)
+   - Refund processed
+   - Beautiful HTML email templates
+   - Ready for SendGrid/AWS SES/Resend integration
+
+2. **Transaction Timeline** - Visual history of all transaction events:
+   - Shows all status changes with timestamps
+   - Icons and color-coded events
+   - Displays M-Pesa receipts, dispute reasons
+   - Chronological order with detailed descriptions
+
+3. **Transaction Details Modal** - Comprehensive view:
+   - Full transaction information
+   - Interactive timeline component
+   - Buyer/seller details
+   - Current status with visual indicators
+
+4. **Refund Mechanism** - Process refunds for disputed transactions:
+   - New `/api/refund` endpoint with authentication
+   - Can refund paid or disputed transactions
+   - Updates status to 'refunded'
+   - Sends email notifications
+   - Refund button in transaction cards
+
+5. **Enhanced Status Management**:
+   - Added 'refunded' status
+   - Updated all filters and displays
+   - Status validation in backend
+   - Database constraints updated
+
 ### Phase 2: User Experience Improvements ✅
 
 1. **Modern Modal Dialogs** - Replaced all prompt() and alert() calls:
@@ -45,6 +81,7 @@ M-Pesa Escrow Web App
    - `/api/stkpush` - Requires valid JWT token
    - `/api/release` - Requires valid JWT token  
    - `/api/dispute` - Requires valid JWT token
+   - `/api/refund` - Requires valid JWT token (NEW)
    - Verifies user owns the transaction before allowing actions
 
 3. **Enhanced Error Handling**:
@@ -61,19 +98,80 @@ M-Pesa Escrow Web App
 
 ### Database Schema Update Required
 
-Add new columns to your `transactions` table:
+Run both migration files in order:
 
 ```sql
+-- Phase 1 migration
+\i backend/migrations/001_phase1_security.sql
+
+-- Phase 3 migration
+\i backend/migrations/002_phase3_features.sql
+```
+
+Or manually:
+
+```sql
+-- Phase 1
 ALTER TABLE transactions 
 ADD COLUMN IF NOT EXISTS payment_error TEXT;
 
--- Update any existing transactions in 'paid' status without receipt to 'held'
-UPDATE transactions 
-SET status = 'held' 
-WHERE status = 'paid' AND mpesa_receipt IS NULL;
+-- Phase 3
+ALTER TABLE transactions 
+ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
+
+-- Update status constraint
+ALTER TABLE transactions 
+DROP CONSTRAINT IF EXISTS transactions_status_check;
+
+ALTER TABLE transactions 
+ADD CONSTRAINT transactions_status_check 
+CHECK (status IN ('held', 'pending_payment', 'paid', 'complete', 'disputed', 'refunded'));
 ```
 
+### Email Service Integration
+
+The email service is ready for production integration. To use a real email provider:
+
+1. **Install your preferred service** (example with SendGrid):
+```bash
+cd backend
+npm install @sendgrid/mail
+```
+
+2. **Update `backend/services/emailService.js`**:
+```javascript
+const sgMail = require('@sendgrid/mail')
+sgMail.setApiKey(process.env.SENDGRID_API_KEY)
+
+const sendEmail = async (to, subject, htmlContent) => {
+  await sgMail.send({
+    to,
+    from: 'noreply@safipay.com', // Your verified sender
+    subject,
+    html: htmlContent
+  })
+  return { success: true }
+}
+```
+
+3. **Add to `.env`**:
+```bash
+SENDGRID_API_KEY=your_api_key_here
+FRONTEND_URL=https://your-domain.com
+```
+
+Supported services: SendGrid, AWS SES, Resend, Mailgun, Postmark
+
 ### Testing Checklist
+
+Phase 3:
+- [ ] View transaction details modal with timeline
+- [ ] Check email notifications in console logs
+- [ ] Process refund on paid transaction
+- [ ] Process refund on disputed transaction
+- [ ] Verify refunded status appears correctly
+- [ ] Filter transactions by refunded status
+- [ ] Timeline shows all events chronologically
 
 Phase 2:
 - [ ] Open payment modal and send STK push
@@ -104,7 +202,9 @@ cd backend && npm install
 
 2. Configure environment variables (see `.env.example`)
 
-3. Run development servers:
+3. Run database migrations (see above)
+
+4. Run development servers:
 ```bash
 # Frontend
 npm run dev

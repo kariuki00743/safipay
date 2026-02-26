@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Modal from '../components/Modal'
 import Toast from '../components/Toast'
+import TransactionTimeline from '../components/TransactionTimeline'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -19,6 +20,8 @@ export default function Dashboard() {
   const [paymentModal, setPaymentModal] = useState({ open: false, transaction: null, phone: '', loading: false })
   const [releaseModal, setReleaseModal] = useState({ open: false, transaction: null, loading: false })
   const [disputeModal, setDisputeModal] = useState({ open: false, transaction: null, reason: '', loading: false })
+  const [detailsModal, setDetailsModal] = useState({ open: false, transaction: null })
+  const [refundModal, setRefundModal] = useState({ open: false, transaction: null, loading: false })
   
   // Toast notification
   const [toast, setToast] = useState({ message: '', type: 'info' })
@@ -254,6 +257,43 @@ export default function Dashboard() {
     }
   }
 
+  const handleRefund = async () => {
+    const { transaction } = refundModal
+    setRefundModal(prev => ({ ...prev, loading: true }))
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        showToast('Session expired. Please log in again.', 'error')
+        navigate('/login')
+        return
+      }
+
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/refund`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ transactionId: transaction.id })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        showToast('Refund processed successfully! 💰', 'success')
+        setRefundModal({ open: false, transaction: null, loading: false })
+        fetchTransactions(user.id)
+      } else {
+        showToast(data.error || 'Failed to process refund', 'error')
+        setRefundModal(prev => ({ ...prev, loading: false }))
+      }
+    } catch (err) {
+      console.error(err)
+      showToast('Could not connect to server', 'error')
+      setRefundModal(prev => ({ ...prev, loading: false }))
+    }
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate('/login')
@@ -265,6 +305,7 @@ export default function Dashboard() {
     if (status === 'paid') return { bg: 'rgba(0,150,255,0.12)', color: '#0096ff', label: '💳 Paid' }
     if (status === 'complete') return { bg: 'rgba(0,197,102,0.12)', color: '#00c566', label: '✓ Complete' }
     if (status === 'disputed') return { bg: 'rgba(224,19,46,0.12)', color: '#e0132e', label: '⚠ Disputed' }
+    if (status === 'refunded') return { bg: 'rgba(255,152,0,0.12)', color: '#ff9800', label: '💰 Refunded' }
     return { bg: 'rgba(255,255,255,0.05)', color: '#6b9178', label: status }
   }
 
@@ -388,6 +429,7 @@ export default function Dashboard() {
             <option value="paid">Paid</option>
             <option value="complete">Complete</option>
             <option value="disputed">Disputed</option>
+            <option value="refunded">Refunded</option>
           </select>
         </div>
 
@@ -422,12 +464,13 @@ export default function Dashboard() {
               const canPay = tx.status === 'held'
               const canRelease = tx.status === 'paid'
               const canDispute = tx.status === 'held' || tx.status === 'pending_payment' || tx.status === 'paid'
+              const canRefund = tx.status === 'paid' || tx.status === 'disputed'
               return (
                 <div key={tx.id} style={{ background: '#0f1a12', border: '1px solid rgba(0,197,102,0.12)', borderRadius: '14px', padding: '1.3rem 1.5rem' }}>
 
                   {/* TOP ROW */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <div>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
                       <div style={{ fontWeight: 600, marginBottom: '0.3rem' }}>{tx.description}</div>
                       <div style={{ color: '#6b9178', fontSize: '0.8rem' }}>{tx.buyer_email} → {tx.seller_email}</div>
                     </div>
@@ -461,6 +504,11 @@ export default function Dashboard() {
                       {new Date(tx.created_at).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button 
+                        onClick={() => setDetailsModal({ open: true, transaction: tx })}
+                        style={{ background: 'transparent', color: '#6b9178', border: '1px solid rgba(0,197,102,0.2)', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                        📋 Details
+                      </button>
                       {canPay && (
                         <button 
                           onClick={() => setPaymentModal({ open: true, transaction: tx, phone: '', loading: false })} 
@@ -478,6 +526,13 @@ export default function Dashboard() {
                           onClick={() => setReleaseModal({ open: true, transaction: tx, loading: false })} 
                           style={{ background: 'transparent', color: '#00c566', border: '1px solid rgba(0,197,102,0.4)', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                           ✅ Release Funds
+                        </button>
+                      )}
+                      {canRefund && (
+                        <button 
+                          onClick={() => setRefundModal({ open: true, transaction: tx, loading: false })} 
+                          style={{ background: 'transparent', color: '#ff9800', border: '1px solid rgba(255,152,0,0.4)', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
+                          💰 Refund
                         </button>
                       )}
                       {canDispute && (
@@ -678,6 +733,112 @@ export default function Dashboard() {
             <button 
               onClick={() => setDisputeModal({ open: false, transaction: null, reason: '', loading: false })}
               disabled={disputeModal.loading}
+              style={{ 
+                flex: 1,
+                background: 'transparent',
+                color: '#6b9178',
+                border: '1px solid rgba(0,197,102,0.15)',
+                borderRadius: '10px',
+                padding: '0.85rem',
+                cursor: 'pointer'
+              }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* TRANSACTION DETAILS MODAL */}
+      <Modal 
+        isOpen={detailsModal.open} 
+        onClose={() => setDetailsModal({ open: false, transaction: null })}
+        title="Transaction Details">
+        {detailsModal.transaction && (
+          <div>
+            <div style={{ background: '#152019', border: '1px solid rgba(0,197,102,0.1)', borderRadius: '10px', padding: '1.5rem', marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Description</div>
+                <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{detailsModal.transaction.description}</div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Buyer</div>
+                  <div style={{ fontSize: '0.9rem' }}>{detailsModal.transaction.buyer_email}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Seller</div>
+                  <div style={{ fontSize: '0.9rem' }}>{detailsModal.transaction.seller_email}</div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Amount</div>
+                <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.5rem', fontWeight: 800, color: '#00c566' }}>
+                  KES {Number(detailsModal.transaction.amount).toLocaleString()}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Status</div>
+                <span style={{ 
+                  background: statusColor(detailsModal.transaction.status).bg, 
+                  color: statusColor(detailsModal.transaction.status).color, 
+                  padding: '0.3rem 1rem', 
+                  borderRadius: '50px', 
+                  fontSize: '0.85rem', 
+                  fontWeight: 600,
+                  display: 'inline-block'
+                }}>
+                  {statusColor(detailsModal.transaction.status).label}
+                </span>
+              </div>
+            </div>
+
+            <TransactionTimeline transaction={detailsModal.transaction} />
+          </div>
+        )}
+      </Modal>
+
+      {/* REFUND MODAL */}
+      <Modal 
+        isOpen={refundModal.open} 
+        onClose={() => !refundModal.loading && setRefundModal({ open: false, transaction: null, loading: false })}
+        title="Process Refund">
+        <div>
+          <p style={{ color: '#6b9178', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+            Are you sure you want to refund this transaction? The funds will be returned to the buyer's M-Pesa account.
+          </p>
+          <div style={{ background: '#152019', border: '1px solid rgba(0,197,102,0.1)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Transaction</div>
+            <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{refundModal.transaction?.description}</div>
+            <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.5rem' }}>
+              {refundModal.transaction?.buyer_email} → {refundModal.transaction?.seller_email}
+            </div>
+            <div style={{ fontFamily: 'Syne, sans-serif', fontSize: '1.3rem', fontWeight: 800, color: '#ff9800' }}>
+              KES {Number(refundModal.transaction?.amount || 0).toLocaleString()}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button 
+              onClick={handleRefund}
+              disabled={refundModal.loading}
+              style={{ 
+                flex: 1,
+                background: '#ff9800',
+                color: '#000',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '0.85rem',
+                fontWeight: 700,
+                cursor: refundModal.loading ? 'not-allowed' : 'pointer',
+                opacity: refundModal.loading ? 0.6 : 1
+              }}>
+              {refundModal.loading ? 'Processing...' : '💰 Confirm Refund'}
+            </button>
+            <button 
+              onClick={() => setRefundModal({ open: false, transaction: null, loading: false })}
+              disabled={refundModal.loading}
               style={{ 
                 flex: 1,
                 background: 'transparent',

@@ -3,6 +3,13 @@ const cors = require('cors')
 const axios = require('axios')
 require('dotenv').config()
 const { createClient } = require('@supabase/supabase-js')
+const {
+  notifyTransactionCreated,
+  notifyPaymentReceived,
+  notifyFundsReleased,
+  notifyDisputeRaised,
+  notifyRefundProcessed
+} = require('./services/emailService')
 
 const app = express()
 app.use(cors())
@@ -180,7 +187,7 @@ app.post('/api/callback', async (req, res) => {
       const amount = get('Amount')
 
       // Update transaction with receipt and mark as paid
-      const { error } = await supabase
+      const { data: transaction, error } = await supabase
         .from('transactions')
         .update({
           status: 'paid',
@@ -188,11 +195,20 @@ app.post('/api/callback', async (req, res) => {
           paid_at: new Date().toISOString()
         })
         .eq('mpesa_code', checkoutId)
+        .select()
+        .single()
 
       if (error) {
         console.error('Failed to update transaction:', error)
       } else {
         console.log(`✅ Payment confirmed: ${receipt} for KES ${amount} from ${phone}`)
+        
+        // Send email notifications
+        try {
+          await notifyPaymentReceived(transaction)
+        } catch (emailError) {
+          console.error('Failed to send email notification:', emailError)
+        }
       }
     } else {
       // Payment failed or cancelled
@@ -251,10 +267,28 @@ app.post('/api/release', verifyAuth, async (req, res) => {
         completed_at: new Date().toISOString()
       })
       .eq('id', transactionId)
+      .select()
+      .single()
 
     if (error) throw error
     
     console.log(`✅ Funds released for transaction ${transactionId}`)
+    
+    // Send email notifications
+    try {
+      const { data: transaction } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .single()
+      
+      if (transaction) {
+        await notifyFundsReleased(transaction)
+      }
+    } catch (emailError) {
+      console.error('Failed to send email notification:', emailError)
+    }
+    
     res.json({ success: true })
   } catch (err) {
     console.error('Release error:', err.message)
@@ -302,13 +336,95 @@ app.post('/api/dispute', verifyAuth, async (req, res) => {
         dispute_reason: reason
       })
       .eq('id', transactionId)
+      .select()
+      .single()
 
     if (error) throw error
     
     console.log(`⚠️ Dispute raised for transaction ${transactionId}`)
+    
+    // Send email notifications
+    try {
+      const { data: transaction } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .single()
+      
+      if (transaction) {
+        await notifyDisputeRaised(transaction)
+      }
+    } catch (emailError) {
+      console.error('Failed to send email notification:', emailError)
+    }
+    
     res.json({ success: true })
   } catch (err) {
     console.error('Dispute error:', err.message)
+    res.status(500).json({ success: false, error: err.message })
+  }
+})
+
+// Refund transaction (admin or after dispute resolution)
+app.post('/api/refund', verifyAuth, async (req, res) => {
+  try {
+    const { transactionId } = req.body
+
+    if (!transactionId) {
+      return res.status(400).json({ success: false, error: 'Transaction ID is required' })
+    }
+
+    // Verify transaction belongs to user
+    const { data: transaction, error: txError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('id', transactionId)
+      .eq('user_id', req.user.id)
+      .single()
+
+    if (txError || !transaction) {
+      return res.status(404).json({ success: false, error: 'Transaction not found' })
+    }
+
+    // Can only refund paid or disputed transactions
+    if (transaction.status !== 'paid' && transaction.status !== 'disputed') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Can only refund paid or disputed transactions' 
+      })
+    }
+
+    // Update transaction status to refunded
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        status: 'refunded',
+        refunded_at: new Date().toISOString()
+      })
+      .eq('id', transactionId)
+
+    if (error) throw error
+    
+    console.log(`💰 Refund processed for transaction ${transactionId}`)
+    
+    // Send email notifications
+    try {
+      const { data: updatedTransaction } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('id', transactionId)
+        .single()
+      
+      if (updatedTransaction) {
+        await notifyRefundProcessed(updatedTransaction)
+      }
+    } catch (emailError) {
+      console.error('Failed to send email notification:', emailError)
+    }
+    
+    res.json({ success: true, message: 'Refund processed successfully' })
+  } catch (err) {
+    console.error('Refund error:', err.message)
     res.status(500).json({ success: false, error: err.message })
   }
 })
