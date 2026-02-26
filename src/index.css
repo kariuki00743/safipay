@@ -6,19 +6,32 @@
 
 body {
   margin: 0;
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #090e0a;
+  background: #0a0f0b;
   color: #e8f5ec;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 /* Mobile responsiveness */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
   /* Hide email on mobile nav */
-  nav span {
+  nav .user-email {
     display: none !important;
   }
   
@@ -31,6 +44,54 @@ body {
   .transaction-actions button {
     width: 100%;
   }
+
+  /* Better spacing on mobile */
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 1rem;
+  }
+
+  .dashboard-header button {
+    width: 100%;
+  }
+
+  /* Stats grid responsive */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Modal adjustments */
+  .modal-content {
+    padding: 1.5rem !important;
+    margin: 1rem !important;
+  }
+
+  /* Transaction cards */
+  .transaction-card {
+    padding: 1rem !important;
+  }
+
+  .transaction-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .transaction-amount {
+    margin-top: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Extra small screens */
+  .filter-container {
+    flex-direction: column;
+  }
+
+  .filter-container input,
+  .filter-container select {
+    width: 100% !important;
+  }
 }
 
 /* Smooth scrolling */
@@ -41,6 +102,7 @@ html {
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -63,6 +125,30 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #00c566;
   outline-offset: 2px;
+}
+
+/* Button hover effects */
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 197, 102, 0.2);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Input styles */
+input, select, textarea {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #00c566 !important;
+  box-shadow: 0 0 0 3px rgba(0, 197, 102, 0.1);
 }
 
 /* Animations */
@@ -89,10 +175,28 @@ textarea:focus-visible {
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Card hover effects */
+.transaction-card {
+  transition: all 0.3s ease;
+}
+
+.transaction-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 197, 102, 0.1);
+  border-color: rgba(0, 197, 102, 0.3) !important;
 }
 
 /* Loading spinner */
@@ -105,7 +209,87 @@ textarea:focus-visible {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.9rem;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Utility classes */
+.text-gradient {
+  background: linear-gradient(135deg, #00c566 0%, #00ff88 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glass-effect {
+  background: rgba(15, 26, 18, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Improved shadows */
+.shadow-sm {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.shadow-md {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.shadow-lg {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Better text rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevent text selection on buttons */
+button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Better link styles */
+a {
+  color: #00c566;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: #00ff88;
+}
+
+/* Improved form elements */
+input::placeholder,
+textarea::placeholder {
+  color: #6b9178;
+  opacity: 0.7;
+}
+
+/* Disabled state */
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(0, 197, 102, 0.3);
+  color: #e8f5ec;
 }
