@@ -12,14 +12,14 @@ export default function Dashboard() {
   const [filteredTransactions, setFilteredTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ buyer_email: '', seller_email: '', amount: '', description: '' })
+  const [form, setForm] = useState({ buyer_email: '', seller_email: '', seller_phone: '', amount: '', description: '' })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   
   // Modal states
   const [paymentModal, setPaymentModal] = useState({ open: false, transaction: null, phone: '', loading: false })
   const [releaseModal, setReleaseModal] = useState({ open: false, transaction: null, loading: false })
-  const [disputeModal, setDisputeModal] = useState({ open: false, transaction: null, reason: '', loading: false })
+  const [disputeModal, setDisputeModal] = useState({ open: false, transaction: null, reason: '', itemDescription: '', images: [], loading: false })
   const [detailsModal, setDetailsModal] = useState({ open: false, transaction: null })
   const [refundModal, setRefundModal] = useState({ open: false, transaction: null, loading: false })
   const [confirmPaymentModal, setConfirmPaymentModal] = useState({ open: false, transaction: null, receipt: '', loading: false })
@@ -107,10 +107,18 @@ export default function Dashboard() {
 
   const handleCreate = async () => {
     setError('')
-    if (!form.buyer_email || !form.seller_email || !form.amount || !form.description) {
+    if (!form.buyer_email || !form.seller_email || !form.seller_phone || !form.amount || !form.description) {
       setError('Please fill in all fields.')
       return
     }
+    
+    // Validate phone number format
+    const phoneRegex = /^(254|0)[17]\d{8}$/
+    if (!phoneRegex.test(form.seller_phone.replace(/\s/g, ''))) {
+      setError('Invalid phone number. Use format: 0712345678 or 254712345678')
+      return
+    }
+    
     setSubmitting(true)
     const { error } = await supabase.from('transactions').insert([{
       ...form,
@@ -122,7 +130,7 @@ export default function Dashboard() {
       setError(error.message)
     } else {
       setShowForm(false)
-      setForm({ buyer_email: '', seller_email: '', amount: '', description: '' })
+      setForm({ buyer_email: '', seller_email: '', seller_phone: '', amount: '', description: '' })
       showToast('Transaction created successfully!', 'success')
       fetchTransactions(user.id)
     }
@@ -216,7 +224,7 @@ export default function Dashboard() {
   }
 
   const handleDispute = async () => {
-    const { transaction, reason } = disputeModal
+    const { transaction, reason, itemDescription, images } = disputeModal
     
     if (!reason.trim() || reason.trim().length < 10) {
       showToast('Please provide a detailed reason (at least 10 characters)', 'error')
@@ -233,19 +241,35 @@ export default function Dashboard() {
         return
       }
 
+      // Convert images to base64 if they exist
+      const evidenceImages = await Promise.all(
+        images.map(async (file) => {
+          return new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.readAsDataURL(file)
+          })
+        })
+      )
+
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/dispute`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ transactionId: transaction.id, reason })
+        body: JSON.stringify({ 
+          transactionId: transaction.id, 
+          reason,
+          itemDescription: itemDescription || null,
+          evidenceImages: evidenceImages.length > 0 ? evidenceImages : null
+        })
       })
       const data = await res.json()
       
       if (data.success) {
         showToast('Dispute raised. Our team will review within 48 hours.', 'warning')
-        setDisputeModal({ open: false, transaction: null, reason: '', loading: false })
+        setDisputeModal({ open: false, transaction: null, reason: '', itemDescription: '', images: [], loading: false })
         fetchTransactions(user.id)
       } else {
         showToast(data.error || 'Failed to raise dispute', 'error')
@@ -435,8 +459,9 @@ export default function Dashboard() {
             )}
             <input placeholder="Buyer email" value={form.buyer_email} onChange={e => setForm({ ...form, buyer_email: e.target.value })} style={inputStyle} />
             <input placeholder="Seller email" value={form.seller_email} onChange={e => setForm({ ...form, seller_email: e.target.value })} style={inputStyle} />
+            <input placeholder="Seller phone (e.g. 0712345678)" value={form.seller_phone} onChange={e => setForm({ ...form, seller_phone: e.target.value })} style={inputStyle} />
             <input placeholder="Amount (KES)" type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={inputStyle} />
-            <input placeholder="Description (e.g. iPhone 14 Pro)" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={inputStyle} />
+            <input placeholder="Description (e.g. Website Development Project)" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} style={inputStyle} />
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button onClick={handleCreate} disabled={submitting} style={{ flex: 1, background: '#00c566', color: '#000', border: 'none', borderRadius: '10px', padding: '0.85rem', fontWeight: 700, cursor: 'pointer' }}>
                 {submitting ? 'Creating...' : 'Create Transaction'}
@@ -630,7 +655,7 @@ export default function Dashboard() {
                       )}
                       {canDispute && (
                         <button 
-                          onClick={() => setDisputeModal({ open: true, transaction: tx, reason: '', loading: false })} 
+                          onClick={() => setDisputeModal({ open: true, transaction: tx, reason: '', itemDescription: '', images: [], loading: false })} 
                           style={{ background: 'transparent', color: '#e0132e', border: '1px solid rgba(224,19,46,0.3)', padding: '0.4rem 1rem', borderRadius: '50px', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}>
                           ⚠️ Raise Dispute
                         </button>
@@ -772,11 +797,11 @@ export default function Dashboard() {
       {/* DISPUTE MODAL */}
       <Modal 
         isOpen={disputeModal.open} 
-        onClose={() => !disputeModal.loading && setDisputeModal({ open: false, transaction: null, reason: '', loading: false })}
+        onClose={() => !disputeModal.loading && setDisputeModal({ open: false, transaction: null, reason: '', itemDescription: '', images: [], loading: false })}
         title="Raise Dispute">
         <div>
           <p style={{ color: '#6b9178', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            Describe the issue with this transaction. Our team will review and respond within 48 hours.
+            Provide detailed information about the issue. Include photos and description to help us resolve this quickly.
           </p>
           <div style={{ background: '#152019', border: '1px solid rgba(0,197,102,0.1)', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Transaction</div>
@@ -785,27 +810,95 @@ export default function Dashboard() {
               KES {Number(disputeModal.transaction?.amount || 0).toLocaleString()}
             </div>
           </div>
-          <textarea 
-            placeholder="Describe the issue in detail (minimum 10 characters)..."
-            value={disputeModal.reason}
-            onChange={(e) => setDisputeModal(prev => ({ ...prev, reason: e.target.value }))}
-            disabled={disputeModal.loading}
-            rows={4}
-            style={{ 
-              width: '100%',
-              background: '#152019',
-              border: '1px solid rgba(0,197,102,0.15)',
-              borderRadius: '10px',
-              padding: '0.85rem 1rem',
-              color: '#e8f5ec',
-              fontSize: '0.95rem',
-              outline: 'none',
-              boxSizing: 'border-box',
-              marginBottom: '1.5rem',
-              fontFamily: 'DM Sans, sans-serif',
-              resize: 'vertical'
-            }}
-          />
+          
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.5rem' }}>
+              What's the issue? <span style={{ color: '#e0132e' }}>*</span>
+            </label>
+            <textarea 
+              placeholder="Describe the problem in detail (minimum 10 characters)..."
+              value={disputeModal.reason}
+              onChange={(e) => setDisputeModal(prev => ({ ...prev, reason: e.target.value }))}
+              disabled={disputeModal.loading}
+              rows={4}
+              style={{ 
+                width: '100%',
+                background: '#152019',
+                border: '1px solid rgba(0,197,102,0.15)',
+                borderRadius: '10px',
+                padding: '0.85rem 1rem',
+                color: '#e8f5ec',
+                fontSize: '0.95rem',
+                outline: 'none',
+                boxSizing: 'border-box',
+                fontFamily: 'DM Sans, sans-serif',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1rem' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.5rem' }}>
+              Item/Service Description (Optional)
+            </label>
+            <textarea 
+              placeholder="Describe what was agreed upon vs what was delivered..."
+              value={disputeModal.itemDescription}
+              onChange={(e) => setDisputeModal(prev => ({ ...prev, itemDescription: e.target.value }))}
+              disabled={disputeModal.loading}
+              rows={3}
+              style={{ 
+                width: '100%',
+                background: '#152019',
+                border: '1px solid rgba(0,197,102,0.15)',
+                borderRadius: '10px',
+                padding: '0.85rem 1rem',
+                color: '#e8f5ec',
+                fontSize: '0.95rem',
+                outline: 'none',
+                boxSizing: 'border-box',
+                fontFamily: 'DM Sans, sans-serif',
+                resize: 'vertical'
+              }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.5rem' }}>
+              Evidence Photos (Optional, up to 5 images)
+            </label>
+            <input 
+              type="file"
+              accept="image/*"
+              multiple
+              disabled={disputeModal.loading}
+              onChange={(e) => {
+                const files = Array.from(e.target.files).slice(0, 5)
+                setDisputeModal(prev => ({ ...prev, images: files }))
+              }}
+              style={{ 
+                width: '100%',
+                background: '#152019',
+                border: '1px solid rgba(0,197,102,0.15)',
+                borderRadius: '10px',
+                padding: '0.85rem 1rem',
+                color: '#e8f5ec',
+                fontSize: '0.9rem',
+                outline: 'none',
+                boxSizing: 'border-box',
+                cursor: 'pointer'
+              }}
+            />
+            {disputeModal.images.length > 0 && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#00c566' }}>
+                📎 {disputeModal.images.length} image(s) selected
+              </div>
+            )}
+            <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#6b9178' }}>
+              💡 Tip: Include photos of the work delivered, screenshots of conversations, or any relevant evidence
+            </div>
+          </div>
+
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button 
               onClick={handleDispute}
@@ -824,7 +917,7 @@ export default function Dashboard() {
               {disputeModal.loading ? 'Submitting...' : '⚠️ Submit Dispute'}
             </button>
             <button 
-              onClick={() => setDisputeModal({ open: false, transaction: null, reason: '', loading: false })}
+              onClick={() => setDisputeModal({ open: false, transaction: null, reason: '', itemDescription: '', images: [], loading: false })}
               disabled={disputeModal.loading}
               style={{ 
                 flex: 1,
@@ -864,6 +957,13 @@ export default function Dashboard() {
                   <div style={{ fontSize: '0.9rem' }}>{detailsModal.transaction.seller_email}</div>
                 </div>
               </div>
+
+              {detailsModal.transaction.seller_phone && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Seller Phone</div>
+                  <div style={{ fontSize: '0.9rem', color: '#00c566', fontWeight: 600 }}>{detailsModal.transaction.seller_phone}</div>
+                </div>
+              )}
 
               <div style={{ marginBottom: '1rem' }}>
                 <div style={{ fontSize: '0.85rem', color: '#6b9178', marginBottom: '0.3rem' }}>Amount</div>

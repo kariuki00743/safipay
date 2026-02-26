@@ -325,10 +325,10 @@ app.post('/api/release', verifyAuth, async (req, res) => {
   }
 })
 
-// Raise dispute
+// Raise dispute with enhanced evidence
 app.post('/api/dispute', verifyAuth, async (req, res) => {
   try {
-    const { transactionId, reason } = req.body
+    const { transactionId, reason, itemDescription, evidenceImages } = req.body
 
     if (!transactionId || !reason) {
       return res.status(400).json({ success: false, error: 'Transaction ID and reason are required' })
@@ -357,6 +357,24 @@ app.post('/api/dispute', verifyAuth, async (req, res) => {
       })
     }
 
+    // Create dispute record with evidence
+    const { error: disputeError } = await supabase
+      .from('disputes')
+      .insert({
+        transaction_id: transactionId,
+        raised_by: req.user.email,
+        reason: reason,
+        item_description: itemDescription || null,
+        evidence_images: evidenceImages || [],
+        status: 'pending'
+      })
+
+    if (disputeError) {
+      console.error('Error creating dispute:', disputeError)
+      throw disputeError
+    }
+
+    // Update transaction status
     const { error } = await supabase
       .from('transactions')
       .update({
@@ -370,7 +388,7 @@ app.post('/api/dispute', verifyAuth, async (req, res) => {
 
     if (error) throw error
     
-    console.log(`⚠️ Dispute raised for transaction ${transactionId}`)
+    console.log(`⚠️ Dispute raised for transaction ${transactionId} with ${evidenceImages?.length || 0} evidence images`)
     
     // Send email notifications
     try {
