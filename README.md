@@ -1,214 +1,335 @@
-# safipay
-M-Pesa Escrow Web App
+# SafiPay - Secure M-Pesa Escrow Platform
 
-## Recent Updates
+<div align="center">
 
-### Phase 3: Missing Features ✅
+![SafiPay Logo](https://img.shields.io/badge/SafiPay-Escrow-00c566?style=for-the-badge)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-blue?style=for-the-badge)](https://kariuki00743.github.io/safipay/)
+[![Backend](https://img.shields.io/badge/Backend-Render-purple?style=for-the-badge)](https://safipay.onrender.com)
 
-1. **Email Notifications** - Automated emails for all transaction events:
-   - Transaction created (sent to buyer & seller)
-   - Payment received (with M-Pesa receipt)
-   - Funds released (transaction complete)
-   - Dispute raised (with reason)
-   - Refund processed
-   - Beautiful HTML email templates
-   - Ready for SendGrid/AWS SES/Resend integration
+**Secure online transactions in Kenya with M-Pesa escrow protection**
 
-2. **Transaction Timeline** - Visual history of all transaction events:
-   - Shows all status changes with timestamps
-   - Icons and color-coded events
-   - Displays M-Pesa receipts, dispute reasons
-   - Chronological order with detailed descriptions
+[Live Demo](https://kariuki00743.github.io/safipay/) • [Report Bug](https://github.com/kariuki00743/safipay/issues) • [Request Feature](https://github.com/kariuki00743/safipay/issues)
 
-3. **Transaction Details Modal** - Comprehensive view:
-   - Full transaction information
-   - Interactive timeline component
-   - Buyer/seller details
-   - Current status with visual indicators
+</div>
 
-4. **Refund Mechanism** - Process refunds for disputed transactions:
-   - New `/api/refund` endpoint with authentication
-   - Can refund paid or disputed transactions
-   - Updates status to 'refunded'
-   - Sends email notifications
-   - Refund button in transaction cards
+---
 
-5. **Enhanced Status Management**:
-   - Added 'refunded' status
-   - Updated all filters and displays
-   - Status validation in backend
-   - Database constraints updated
+## 🎯 What is SafiPay?
 
-### Phase 2: User Experience Improvements ✅
+SafiPay is a modern escrow payment platform built specifically for the Kenyan market. It protects both buyers and sellers in online transactions by holding funds securely until both parties are satisfied. Think of it as a trusted middleman that ensures fair deals for everyone.
 
-1. **Modern Modal Dialogs** - Replaced all prompt() and alert() calls:
-   - Payment modal with phone number input
-   - Release confirmation modal with transaction details
-   - Dispute modal with textarea for detailed reasons
-   - Toast notifications for success/error messages
+### The Problem We Solve
 
-2. **Real-time Payment Status** - Added polling for payment confirmation:
-   - Shows "Checking payment..." indicator after STK push
-   - Automatically updates when M-Pesa callback confirms payment
-   - Polls every 3 seconds for up to 5 minutes
-   - Toast notification when payment is confirmed
+- **Buyers worry**: "What if I pay and never receive the item?"
+- **Sellers worry**: "What if I ship the item and never get paid?"
+- **SafiPay's solution**: Funds are held in escrow until the transaction is complete
 
-3. **Transaction Filtering & Search**:
-   - Search by description, buyer/seller email, or M-Pesa receipt
-   - Filter by status (All, In Escrow, Awaiting Payment, Paid, Complete, Disputed)
-   - Shows count of filtered vs total transactions
-   - Real-time filtering as you type
+### How It Works
 
-4. **Mobile Responsive Design**:
-   - Responsive grid layouts (stats cards adapt to screen size)
-   - Flexible navigation that works on small screens
-   - Touch-friendly button sizes
-   - Proper text scaling with clamp()
-   - Custom scrollbar styling
+1. **Create Transaction** - Buyer and seller agree on terms
+2. **Buyer Pays** - Funds sent via M-Pesa are held securely
+3. **Item Delivered** - Seller ships/delivers as agreed
+4. **Release Payment** - Buyer confirms receipt, seller gets paid instantly
 
-5. **Better Loading States**:
-   - Loading indicators on all modal actions
-   - Disabled buttons during API calls
-   - Visual feedback for all user actions
+---
 
-### Phase 1: Security Improvements ✅
+## ✨ Key Features
 
-1. **Fixed Payment Flow** - Transactions now correctly transition through states:
-   - `held` → `pending_payment` (after STK push) → `paid` (after M-Pesa callback confirms)
-   - Previously marked as paid immediately, which was incorrect
+### 🔒 Security First
+- **JWT Authentication** - All API endpoints secured with token verification
+- **User Ownership Validation** - Users can only access their own transactions
+- **M-Pesa Integration** - Direct STK Push for secure payments
+- **Transaction State Management** - Proper flow validation at every step
 
-2. **Secured Backend Endpoints** - All API routes now require authentication:
-   - `/api/stkpush` - Requires valid JWT token
-   - `/api/release` - Requires valid JWT token  
-   - `/api/dispute` - Requires valid JWT token
-   - `/api/refund` - Requires valid JWT token (NEW)
-   - Verifies user owns the transaction before allowing actions
+### 💳 Payment Processing
+- **M-Pesa STK Push** - Instant payment prompts to buyer's phone
+- **Real-time Status Updates** - Automatic polling for payment confirmation
+- **Manual Confirmation** - Backup option if automatic confirmation fails
+- **Payment Cancellation** - Cancel and retry if needed
 
-3. **Enhanced Error Handling**:
-   - Phone number validation (Kenyan format: 0712345678 or 254712345678)
-   - Amount validation (minimum KES 1)
-   - Transaction state validation (can't release unpaid transactions, etc.)
-   - Failed payment handling (reverts to `held` status for retry)
-   - Detailed error messages returned to frontend
+### 🛡️ Dispute Resolution
+- **Evidence Upload** - Submit up to 5 photos as proof
+- **Detailed Descriptions** - Explain what went wrong
+- **Item Comparison** - Describe expected vs actual delivery
+- **48-Hour Review** - Team reviews and resolves disputes quickly
 
-4. **Environment Variable Validation**:
-   - Backend checks for required env vars on startup
-   - Frontend validates Supabase config before initialization
-   - Clear error messages if configuration is missing
+### 📧 Email Notifications
+- Transaction created
+- Payment received (with M-Pesa receipt)
+- Funds released
+- Dispute raised
+- Refund processed
+- Beautiful HTML templates ready for production
 
-### Database Schema Update Required
+### 📊 Transaction Management
+- **Timeline View** - Visual history of all transaction events
+- **Search & Filter** - Find transactions by description, email, or receipt
+- **Status Tracking** - Real-time updates on transaction progress
+- **Refund System** - Process refunds for disputed transactions
 
-Run both migration files in order:
+### 📱 Mobile Responsive
+- Works perfectly on phones, tablets, and desktops
+- Touch-friendly interface
+- Optimized for Kenyan users
 
-```sql
--- Phase 1 migration
-\i backend/migrations/001_phase1_security.sql
+---
 
--- Phase 3 migration
-\i backend/migrations/002_phase3_features.sql
+## 🚀 Tech Stack
+
+### Frontend
+- **React** - Modern UI library
+- **Vite** - Lightning-fast build tool
+- **Supabase Auth** - User authentication
+- **React Router** - Client-side routing
+
+### Backend
+- **Node.js + Express** - RESTful API server
+- **Supabase** - PostgreSQL database with real-time features
+- **M-Pesa Daraja API** - Payment processing
+- **JWT** - Secure authentication tokens
+
+### Deployment
+- **Frontend**: GitHub Pages
+- **Backend**: Render.com
+- **Database**: Supabase Cloud
+
+---
+
+## 📦 Installation & Setup
+
+### Prerequisites
+- Node.js 16+ and npm
+- Supabase account
+- M-Pesa Daraja API credentials (sandbox or production)
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/kariuki00743/safipay.git
+cd safipay
 ```
 
-Or manually:
+### 2. Install Dependencies
+```bash
+# Frontend dependencies
+npm install
 
-```sql
--- Phase 1
-ALTER TABLE transactions 
-ADD COLUMN IF NOT EXISTS payment_error TEXT;
-
--- Phase 3
-ALTER TABLE transactions 
-ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMPTZ;
-
--- Update status constraint
-ALTER TABLE transactions 
-DROP CONSTRAINT IF EXISTS transactions_status_check;
-
-ALTER TABLE transactions 
-ADD CONSTRAINT transactions_status_check 
-CHECK (status IN ('held', 'pending_payment', 'paid', 'complete', 'disputed', 'refunded'));
+# Backend dependencies
+cd backend
+npm install
+cd ..
 ```
 
-### Email Service Integration
+### 3. Configure Environment Variables
 
-The email service is ready for production integration. To use a real email provider:
+**Frontend (`.env`):**
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_BACKEND_URL=http://localhost:3001
+```
 
-1. **Install your preferred service** (example with SendGrid):
+**Backend (`backend/.env`):**
+```env
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+
+MPESA_CONSUMER_KEY=your_mpesa_consumer_key
+MPESA_CONSUMER_SECRET=your_mpesa_consumer_secret
+MPESA_SHORTCODE=your_shortcode
+MPESA_PASSKEY=your_passkey
+MPESA_CALLBACK_URL=http://localhost:3001/api/callback
+
+PORT=3001
+```
+
+### 4. Set Up Database
+
+Run the migrations in your Supabase SQL Editor:
+
+```bash
+# Phase 1: Security improvements
+backend/migrations/001_phase1_security.sql
+
+# Phase 2: Features (timeline, refunds)
+backend/migrations/002_phase3_features.sql
+
+# Phase 3: Enhanced disputes
+backend/migrations/003_enhanced_disputes.sql
+```
+
+### 5. Run Development Servers
+
+**Terminal 1 - Frontend:**
+```bash
+npm run dev
+```
+
+**Terminal 2 - Backend:**
 ```bash
 cd backend
-npm install @sendgrid/mail
-```
-
-2. **Update `backend/services/emailService.js`**:
-```javascript
-const sgMail = require('@sendgrid/mail')
-sgMail.setApiKey(process.env.SENDGRID_API_KEY)
-
-const sendEmail = async (to, subject, htmlContent) => {
-  await sgMail.send({
-    to,
-    from: 'noreply@safipay.com', // Your verified sender
-    subject,
-    html: htmlContent
-  })
-  return { success: true }
-}
-```
-
-3. **Add to `.env`**:
-```bash
-SENDGRID_API_KEY=your_api_key_here
-FRONTEND_URL=https://your-domain.com
-```
-
-Supported services: SendGrid, AWS SES, Resend, Mailgun, Postmark
-
-### Testing Checklist
-
-Phase 3:
-- [ ] View transaction details modal with timeline
-- [ ] Check email notifications in console logs
-- [ ] Process refund on paid transaction
-- [ ] Process refund on disputed transaction
-- [ ] Verify refunded status appears correctly
-- [ ] Filter transactions by refunded status
-- [ ] Timeline shows all events chronologically
-
-Phase 2:
-- [ ] Open payment modal and send STK push
-- [ ] See real-time payment status updates
-- [ ] Search transactions by description
-- [ ] Filter transactions by status
-- [ ] Test on mobile device (responsive layout)
-- [ ] Release funds via modal confirmation
-- [ ] Raise dispute with detailed reason
-- [ ] See toast notifications for all actions
-
-Phase 1:
-- [ ] Create transaction (should be in `held` status)
-- [ ] Initiate payment (should move to `pending_payment`)
-- [ ] Complete M-Pesa payment (should move to `paid` with receipt)
-- [ ] Cancel M-Pesa payment (should revert to `held`)
-- [ ] Try to release funds without auth token (should fail with 401)
-- [ ] Release funds (should move to `complete`)
-- [ ] Raise dispute (should move to `disputed`)
-
-## Setup
-
-1. Install dependencies:
-```bash
-npm install
-cd backend && npm install
-```
-
-2. Configure environment variables (see `.env.example`)
-
-3. Run database migrations (see above)
-
-4. Run development servers:
-```bash
-# Frontend
 npm run dev
-
-# Backend
-cd backend && npm run dev
 ```
+
+Visit `http://localhost:5173` to see the app!
+
+---
+
+## 🌐 Deployment
+
+### Frontend (GitHub Pages)
+```bash
+npm run deploy
+```
+
+### Backend (Render.com)
+1. Create a new Web Service on Render
+2. Connect your GitHub repository
+3. Configure:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node server.js`
+4. Add all environment variables from `backend/.env`
+5. Deploy!
+
+---
+
+## 📋 API Endpoints
+
+### Authentication Required
+All endpoints require `Authorization: Bearer <jwt_token>` header
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/stkpush` | Initiate M-Pesa STK Push |
+| POST | `/api/release` | Release funds to seller |
+| POST | `/api/dispute` | Raise dispute with evidence |
+| POST | `/api/refund` | Process refund to buyer |
+| POST | `/api/confirm-payment` | Manually confirm payment |
+| POST | `/api/cancel-payment` | Cancel pending payment |
+
+### Public Endpoints
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | API status |
+| GET | `/health` | Health check |
+| POST | `/api/callback` | M-Pesa callback (webhook) |
+
+---
+
+## 🎨 Use Cases
+
+SafiPay is perfect for:
+
+- 📱 **Electronics** - Phones, laptops, gadgets
+- 🏠 **Real Estate** - Property deposits, rent payments
+- 🚗 **Vehicles** - Cars, motorcycles, spare parts
+- 💻 **Freelance Work** - Web development, design, writing
+- 👕 **Fashion** - Clothes, shoes, accessories
+- 🪑 **Furniture** - Home and office furniture
+- 🎮 **Gaming** - Consoles, games, accounts
+- 📚 **Education** - Online courses, tutoring
+- 🎨 **Art & Collectibles** - Artwork, antiques, rare items
+
+---
+
+## 🔐 Security Features
+
+- ✅ JWT-based authentication
+- ✅ User ownership validation
+- ✅ Transaction state validation
+- ✅ Phone number format validation
+- ✅ SQL injection protection (Supabase RLS)
+- ✅ CORS configuration
+- ✅ Environment variable validation
+- ✅ Secure M-Pesa integration
+
+---
+
+## 📱 Screenshots
+
+### Landing Page
+Modern, professional landing page tailored for the Kenyan market with trust indicators and clear value proposition.
+
+### Dashboard
+Clean interface showing all transactions with search, filters, and real-time status updates.
+
+### Transaction Details
+Comprehensive view with timeline, evidence photos, and action buttons based on transaction status.
+
+### Dispute Modal
+Amazon-style dispute resolution with photo upload and detailed description fields.
+
+---
+
+## 🛣️ Roadmap
+
+### Completed ✅
+- [x] Core escrow functionality
+- [x] M-Pesa STK Push integration
+- [x] User authentication
+- [x] Transaction timeline
+- [x] Dispute resolution with evidence
+- [x] Email notifications
+- [x] Refund system
+- [x] Mobile responsive design
+- [x] Real-time payment polling
+- [x] Search and filtering
+
+### Coming Soon 🚧
+- [ ] Admin dashboard for dispute resolution
+- [ ] SMS notifications
+- [ ] Multi-currency support
+- [ ] Escrow for services (milestone-based)
+- [ ] Rating system for buyers/sellers
+- [ ] Transaction analytics
+- [ ] Automated dispute resolution
+- [ ] Mobile app (React Native)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👨‍💻 Author
+
+**Kariuki**
+- GitHub: [@kariuki00743](https://github.com/kariuki00743)
+
+---
+
+## 🙏 Acknowledgments
+
+- Safaricom for the M-Pesa Daraja API
+- Supabase for the amazing backend platform
+- The Kenyan tech community for inspiration
+
+---
+
+## 📞 Support
+
+For support, email support@safipay.com or open an issue on GitHub.
+
+---
+
+<div align="center">
+
+**Made with 💚 in Kenya, for Kenyans**
+
+[⬆ Back to Top](#safipay---secure-m-pesa-escrow-platform)
+
+</div>
